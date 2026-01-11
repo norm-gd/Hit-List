@@ -34,7 +34,7 @@ function renderIcon(key) {
   return null;
 }
 
-export default function Sidebar({ open, onClose, onClear, onToggle, lists = [], onOpenList, onExport }) {
+export default function Sidebar({ open, onClose, onClear, onToggle, lists = [], onOpenList, onExport, onSave }) {
   const recent = lists ? [...lists].reverse().slice(0, 8) : [];
 
   const handleClear = () => {
