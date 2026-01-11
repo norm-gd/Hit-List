@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import Login from './components/Login';
 import Toasts from './components/Toast';
 import './index.css';
 
@@ -14,6 +15,11 @@ const PALETTE = ['#6C6AFF','#00D4FF','#FF7BA7','#FFD89B','#7FFFD4','#C7A0FF'];
 function App() {
   const [lists, setLists] = useState([]);
   const [showHome, setShowHome] = useState(true);
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  });
+  const [showLogin, setShowLogin] = useState(false);
+  const [playgroundName, setPlaygroundName] = useState(() => localStorage.getItem('playgroundName') || 'Default Playground');
   const nodeRefs = useRef({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [draggingIds, setDraggingIds] = useState([]);
@@ -78,7 +84,8 @@ function App() {
       title: 'New List',
       items: [],
       color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
-      position: { x: Math.random() * 200, y: Math.random() * 200 }
+      position: { x: Math.random() * 200, y: Math.random() * 200 },
+      playground: playgroundName
     };
     setLists([...lists, newList]);
     setShowHome(false);
@@ -226,7 +233,8 @@ function App() {
   const cancelEditing = () => { setEditingItem(null); setEditingValue(''); };
 
   const handleLogin = () => {
-    alert('Login functionality not implemented in this serverless version.');
+    // open login modal / redirect to login screen
+    setShowLogin(true);
   };
 
   const openFromHistory = (id) => {
@@ -275,13 +283,73 @@ function App() {
     });
   };
 
-  const saveNow = () => {
-    addToast({ message: 'Save not implemented yet', variant: 'info' });
+  const buildSavePayload = (listsToSave) => {
+    return {
+      playground: playgroundName,
+      createdAt: new Date().toISOString(),
+      lists: listsToSave.map(l => ({
+        title: l.title,
+        items: (l.items || []).map(i => i.text || ''),
+        color: l.color
+      }))
+    };
+  };
+
+  const onLoginSuccess = (userObj) => {
+    setUser(userObj);
+    try { localStorage.setItem('user', JSON.stringify(userObj)); } catch (e) {}
+    setShowLogin(false);
+    addToast({ message: `Logged in as ${userObj.name}`, variant: 'success' });
+  };
+
+  const saveNow = async () => {
+    if (!user) {
+      addToast({
+        message: 'Please log in to save your lists',
+        variant: 'info',
+        actions: [{ label: 'Login', onClick: () => setShowLogin(true) }]
+      });
+      setShowLogin(true);
+      return;
+    }
+    if (lists.length === 0) {
+      addToast({ message: 'No lists to save', variant: 'info' });
+      return;
+    }
+    const payload = buildSavePayload(lists);
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      let savedUrl;
+      if (res.ok) {
+        const data = await res.json();
+        savedUrl = data.url || (data.id ? `${window.location.origin}/share/${data.id}` : null);
+      } else {
+        const encoded = btoa(JSON.stringify(payload));
+        savedUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+      }
+      addToast({
+        message: 'Lists saved',
+        variant: 'success',
+        actions: [{ label: 'Copy link', onClick: () => { try { navigator.clipboard.writeText(savedUrl); addToast({ message: 'Link copied', variant: 'success' }); } catch(e){} } }]
+      });
+    } catch (e) {
+      const encoded = btoa(JSON.stringify(payload));
+      const savedUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+      addToast({
+        message: 'Offline save (local shareable URL created)',
+        variant: 'success',
+        actions: [{ label: 'Copy link', onClick: () => { try { navigator.clipboard.writeText(savedUrl); addToast({ message: 'Link copied', variant: 'success' }); } catch(e){} } }]
+      });
+    }
   };
 
   return (
     <div className="app">
-      <Header onCreate={createList} onLogin={handleLogin} />
+      <Header onCreate={createList} onLogin={() => setShowLogin(true)} user={user} onLogout={() => { setUser(null); localStorage.removeItem('user'); addToast({ message: 'Logged out', variant: 'info' }); }} />
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -296,11 +364,18 @@ function App() {
       <main ref={playgroundRef} className="playground" role="main">
         <div className="bg-glow" aria-hidden="true"></div>
         <Toasts toasts={toasts} onAction={handleToastAction} onClose={removeToast} />
+        {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={onLoginSuccess} />} 
 
         {lists.length === 0 && (
           <div className="empty-state">
             <h2>Welcome to Hit-List</h2>
             <p>Use <strong>Create List</strong> (top-right) to add draggable lists. Drag windows by their header to move them and share via URL.</p>
+
+            <div className="home-playground">
+              <label className="muted">Default playground name</label>
+              <input value={playgroundName} onChange={(e) => { setPlaygroundName(e.target.value); try { localStorage.setItem('playgroundName', e.target.value); } catch(e){} }} placeholder="Default Playground" />
+            </div>
+
             <button className="btn primary" onClick={createList}>Create List</button>
           </div>
         )}
