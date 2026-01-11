@@ -38,14 +38,102 @@ body {
   top: 50px;
   left: 50px;
   width: 300px;
-  background: var(--frost-bg);
-  backdrop-filter: var(--frost-blur);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* stronger, consistent frosted base to avoid background bleeding */
+  background: linear-gradient(180deg, rgba(18,18,22,0.76), rgba(12,12,16,0.72));
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
   z-index: 20;
   padding: 10px;
+  --accent: var(--accent-color, #6C6AFF);
+  overflow: visible;
+  transition: box-shadow 120ms ease, transform 120ms ease, border-color 120ms ease;
+  isolation: isolate; /* contain blend modes so background glow doesn't show through */
 }
+
+/* full-window tint overlay with integrated left/top accents */
+.window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* layered backgrounds: left band, top band, then subtle color fill */
+  background-image: 
+    linear-gradient(90deg, var(--accent) 0px, var(--accent) 8px, rgba(0,0,0,0) 8px),
+    linear-gradient(180deg, var(--accent) 0px, var(--accent) 6px, rgba(0,0,0,0) 6px),
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  background-repeat: no-repeat;
+  background-color: var(--accent);
+  opacity: 0.10; /* subtle tint across entire window */
+  mix-blend-mode: normal; /* normal blend for uniform appearance */
+  pointer-events: none;
+  transition: opacity 160ms ease, background 160ms ease;
+  z-index: 0;
+}
+
+/* ensure content sits above the tint overlay */
+.window > * { position: relative; z-index: 1; }
+
+/* header accent strip removed to avoid duplicate bars */
+.window-header { position: relative; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:space-between; }
+
+.window .list-input.title { font-weight: 800; font-size: 18px; color: var(--text-color); background: transparent; border: none; padding: 8px 8px 6px 8px; letter-spacing: 0.2px; }
+
+/* color picker button — icon-only, smaller and integrated */
+.color-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.color-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.02); }
+
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.32);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+/* open state: subtle emphasis around the icon (no big square) */
+.color-btn.open { background: rgba(255,255,255,0.02); box-shadow: 0 6px 18px rgba(0,0,0,0.45); border-radius: 8px; padding: 4px; }
+.color-btn.open .color-indicator { transform: scale(1.25); box-shadow: 0 8px 22px rgba(0,0,0,0.5); outline: 2px solid rgba(255,255,255,0.04); }
+
+/* palette popup */
+.color-palette {
+  position: absolute;
+  right: 10px;
+  top: 44px;
+  display:flex;
+  gap:8px;
+  padding:10px;
+  border-radius:12px;
+  background: linear-gradient(180deg, rgba(10,10,12,0.7), rgba(10,10,12,0.6));
+  border: 1px solid rgba(255,255,255,0.03);
+  backdrop-filter: blur(10px);
+  z-index: 260;
+}
+.color-swatch { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: transform 120ms ease, box-shadow 120ms ease; }
+.color-swatch:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(0,0,0,0.55); }
+.color-swatch.selected { transform: scale(1.12); box-shadow: 0 10px 24px rgba(0,0,0,0.55); outline: 2px solid rgba(255,255,255,0.06); } 
+
+/* remove action style reflects accent */
+.remove-item { color: var(--accent); font-weight: 700; background: transparent; border: none; cursor: pointer; }
+
+/* add button uses accent */
+.add-row .btn.small { background: var(--accent); color: #0b0b0b; border: none; }
+.add-row .btn.small:hover { filter: brightness(0.95); transform: translateY(-1px); }
+
+
 
 /* When dragging we remove transitions and raise z-index for smooth dragging */
 .window.dragging {
@@ -95,8 +183,27 @@ body {
 .list-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 5px;
+  margin-bottom: 4px; /* reduced spacing */
+  align-items: center;
+  padding: 4px 6px; /* tighter padding */
+  border-radius: 6px;
 }
+
+.list-item.drag-over-before { box-shadow: inset 6px 0 0 0 var(--accent); }
+.list-item.drag-over-after { box-shadow: inset -6px 0 0 0 var(--accent); }
+
+.list-item.editing { background: rgba(255,255,255,0.02); }
+
+.item-edit-input { width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); color: var(--text-color); border-radius: 8px; }
+
+.item-actions { display:flex; gap:8px; align-items:center; }
+/* smooth reorder visual transition */
+.list-item { transition: transform 160ms ease, box-shadow 160ms ease, background 120ms ease; }
+.list-item.dragging { opacity: 0.92; transform: none; box-shadow: 0 18px 40px rgba(0,0,0,0.45); z-index: 220; }
+
+.list-item.drag-over-before { box-shadow: inset 6px 0 0 0 var(--accent); }
+.list-item.drag-over-after { box-shadow: inset -6px 0 0 0 var(--accent); }
+
 
 .home {
   position: absolute;
@@ -333,11 +440,11 @@ body {
   position: fixed;
   top: 60px;
   left: 0;
-  width: 72px; /* default collapsed width */
+  width: 88px; /* default collapsed width, slightly larger to match graphics */
   bottom: 0;
   background: rgba(20,20,30,0.6);
   border-right: 1px solid rgba(255,255,255,0.04);
-  padding: 12px 8px;
+  padding: 12px 10px;
   transition: width 200ms ease, left 220ms ease;
   z-index: 120; /* above windows */
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -347,7 +454,7 @@ body {
 }
 
 .sidebar.open { width: 320px; padding: 16px; }
-.sidebar.collapsed { width: 72px; padding: 12px 8px; }
+.sidebar.collapsed { width: 88px; padding: 14px 10px; }
 
 .sidebar-inner { display: flex; flex-direction: column; height: 100%; }
 
@@ -356,13 +463,17 @@ body {
 .icon-btn { width: 48px; height: 48px; display:flex; align-items:center; justify-content:center; border-radius: 999px; background: transparent; border: none; color: var(--text-color); cursor: pointer; }
 .icon-btn:hover { background: rgba(255,255,255,0.03); }
 
-.icon-btn.big { width: 64px; height: 64px; font-size: 20px; border-radius: 12px; background: rgba(255,255,255,0.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.012); }
-.icon-btn.big:hover { background: rgba(255,255,255,0.04); transform: translateY(-2px); }
+/* scale svg icons within collapsed rail */
+.sidebar-collapsed-nav .icon svg { width: 22px; height: 22px; }
+.icon-btn.big .icon svg { width: 30px; height: 30px; }
+
+.icon-btn.big { width: 80px; height: 80px; font-size: 22px; border-radius: 14px; background: rgba(255,255,255,0.02); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.012); display:flex; align-items:center; justify-content:center; }
+.icon-btn.big:hover { background: rgba(255,255,255,0.04); transform: translateY(-3px); }
 
 /* Action buttons in expanded sidebar */
 .action-row { display:flex; gap:12px; align-items:center; margin-bottom: 12px; }
 .action-btn { display:flex; gap:10px; align-items:center; padding: 10px 12px; border-radius: 10px; background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.03); cursor: pointer; color: var(--text-color); }
-.action-btn .action-icon { display:inline-flex; width:28px; height:28px; align-items:center; justify-content:center; }
+.action-btn .action-icon { display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; }
 .action-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.45); }
 
 .spacer { flex: 1; }
@@ -370,9 +481,9 @@ body {
 /* collapsed actions area: make clear and toggle aligned */
 .collapsed-actions { display:flex; flex-direction:column; gap:12px; align-items:center; margin-bottom: 8px; }
 
-.collapse-toggle { background: transparent; border: 1px solid rgba(255,255,255,0.04); color: var(--text-color); padding: 8px 10px; border-radius: 8px; cursor: pointer; }
-.collapse-toggle.expanded { margin-left: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.04); color: var(--text-color); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
-.collapse-toggle.top { align-self: flex-end; margin-bottom: 10px; background: transparent; border: 1px solid rgba(255,255,255,0.02); padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.collapse-toggle { background: transparent; border: 1px solid rgba(255,255,255,0.04); color: var(--text-color); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; min-width: 44px; min-height: 44px; display:flex; align-items:center; justify-content:center; }
+.collapse-toggle.expanded { margin-left: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.04); color: var(--text-color); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; min-width: 44px; min-height: 44px; }
+.collapse-toggle.top { align-self: flex-end; margin-bottom: 10px; background: transparent; border: 1px solid rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; min-width: 44px; min-height: 44px; }
 .collapse-toggle { align-self: center; margin-bottom: 8px; }
 
 .sidebar.open .link-btn { display: flex; gap: 8px; align-items: center; }
