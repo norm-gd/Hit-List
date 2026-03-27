@@ -38,6 +38,11 @@ To learn more about Rsbuild, check out the following resources:
 
 ## 
 
-<img src="https://github.com/norman-glad/Hit-List/blob/main/public/giphy.webp?raw=true">
+[yeahmf]: https://github.com/norman-glad/Hit-List/blob/main/public/giphy.webp?raw=true
+
+|          |          |          |
+|----------|----------|----------|
+| ![img1][yeahmf] | ![img2][yeahmf] | ![img3][yeahmf] |
+
 
 
