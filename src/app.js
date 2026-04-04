@@ -7,7 +7,7 @@ import Login from './components/Login';
 import Toasts from './components/Toast';
 import './index.css';
 
-const MAX_URL_LENGTH = 50000;
+const MAX_URL_LENGTH = 55000;
 
 // color palette used for windows
 const PALETTE = ['#6C6AFF','#00D4FF','#FF7BA7','#FFD89B','#7FFFD4','#C7A0FF'];
