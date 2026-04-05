@@ -10,8 +10,6 @@ npm install
 
 ## Get started
 
-Start the dev server, and the app will be available at [http://localhost:3000](http://localhost:3000).
-
 ```bash
 npm run dev
 ```
@@ -40,8 +38,3 @@ To learn more about Rsbuild, check out the following resources:
 |          |          |          |
 |----------|----------|----------|
 | ![img1][yeahmf] | ![img2][yeahmf] | ![img3][yeahmf] |
-
----
-
-![Mr Bean dancing](https://github.com/norman-glad/Hit-List/blob/main/public/bean.webp?raw=true)
-
