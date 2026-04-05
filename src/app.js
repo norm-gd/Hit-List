@@ -3,30 +3,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import Login from './components/Login';
 import Toasts from './components/Toast';
+import BatchToolbar from './components/BatchToolbar';
+import CommandPalette from './components/CommandPalette';
+import ThemeModal from './components/ThemeModal';
 import './index.css';
-
-// test comment added 
 
 const MAX_URL_LENGTH = 55000;
 
-// color palette used for windows
-const PALETTE = ['#6C6AFF','#00D4FF','#FF7BA7','#FFD89B','#7FFFD4','#C7A0FF'];
+// color palette used for windows (power color swatches)
+const PALETTE = ['#f6ffc0', '#ff51fa', '#c1fffe', '#ff7351', '#daf900'];
 
 function App() {
   const [lists, setLists] = useState([]);
   const [showHome, setShowHome] = useState(true);
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
-  });
-  const [showLogin, setShowLogin] = useState(false);
   const [playgroundName, setPlaygroundName] = useState(() => localStorage.getItem('playgroundName') || 'Default Playground');
   const nodeRefs = useRef({});
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [draggingIds, setDraggingIds] = useState([]);
   const [focusedId, setFocusedId] = useState(null);
   const [paletteOpenId, setPaletteOpenId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [activeNav, setActiveNav] = useState('canvas');
   const playgroundRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -73,7 +72,6 @@ function App() {
         window.history.replaceState(null, '', newUrl);
       } else {
         alert('List too long! Cannot save to URL.');
-        // Optionally truncate or handle overflow
       }
     } else {
       window.history.replaceState(null, '', window.location.pathname);
@@ -93,14 +91,48 @@ function App() {
     setShowHome(false);
   };
 
-  // ensure list items are objects when loading from URL / decoded data
   useEffect(() => {
-    // normalize list items to objects if they are simple strings (backwards compatibility)
     setLists(prev => prev.map(list => ({
       ...list,
       items: (list.items || []).map(it => (typeof it === 'string' ? { id: Date.now() + Math.random(), text: it } : it))
     })));
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => {
+          const newState = !prev;
+          setActiveNav(newState ? 'commands' : 'canvas');
+          return newState;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleCommandAction = (action) => {
+    setShowCommandPalette(false);
+    setActiveNav('canvas');
+    switch (action) {
+      case 'batchDelete':
+        if (selectedIds.length > 0) batchDelete();
+        else addToast({ message: 'No lists selected', variant: 'info' });
+        break;
+      case 'changeAccent':
+        const newAccent = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+        document.documentElement.style.setProperty('--power-color', newAccent);
+        addToast({ message: 'Power color changed', variant: 'success' });
+        break;
+      default:
+        break;
+    }
+  };
 
   const setListColor = (id, color) => {
     setLists(lists.map(list => list.id === id ? { ...list, color } : list));
@@ -127,12 +159,19 @@ function App() {
     }));
   };
 
+  // FIXED: Consolidated closeList function and removed duplicate declaration
   const closeList = (id) => {
-    setLists(lists.filter(list => list.id !== id));
-    // cleanup nodeRef to avoid memory leaks and stale refs
-    if (nodeRefs.current[id]) delete nodeRefs.current[id];
-    if (lists.length === 1) {
-      setShowHome(true);
+    setLists(prevLists => {
+      const filtered = prevLists.filter(list => list.id !== id);
+      if (filtered.length === 0) {
+        setShowHome(true);
+      }
+      return filtered;
+    });
+    
+    // cleanup nodeRef to avoid memory leaks
+    if (nodeRefs.current[id]) {
+        delete nodeRefs.current[id];
     }
   };
 
@@ -140,9 +179,8 @@ function App() {
     setLists(lists.map(list => list.id === id ? { ...list, position: { x: data.x, y: data.y } } : list));
   };
 
-  // --- item reordering (drag & drop within a list) ---
-  const [draggedItem, setDraggedItem] = useState(null); // { listId, index }
-  const [dragOverState, setDragOverState] = useState(null); // { listId, index, position: 'before'|'after' }
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverState, setDragOverState] = useState(null);
 
   const reorderItem = (listId, fromIndex, toIndex) => {
     if (fromIndex === toIndex) return;
@@ -150,7 +188,6 @@ function App() {
       if (list.id !== listId) return list;
       const items = [...list.items];
       const [moved] = items.splice(fromIndex, 1);
-      // adjust target if necessary
       const insertIndex = Math.max(0, Math.min(toIndex, items.length));
       items.splice(insertIndex, 0, moved);
       return { ...list, items };
@@ -159,7 +196,6 @@ function App() {
 
   const onItemDragStart = (e, listId, index) => {
     try { e.dataTransfer.setData('text/plain', JSON.stringify({ listId, index })); } catch (_) {}
-    // set a transparent drag image so the browser doesn't create a ghost
     try {
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg"></svg>';
@@ -171,7 +207,6 @@ function App() {
 
   const onItemDragOver = (e, listId, index) => {
     e.preventDefault();
-    // if dragging over the same item being dragged, ignore to prevent jitter
     let payload = null;
     try { payload = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (_) { }
     if (payload && payload.listId === listId && payload.index === index) {
@@ -180,7 +215,6 @@ function App() {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    // use vertical midpoint for vertical lists
     const midY = rect.top + rect.height / 2;
     const isBefore = e.clientY < midY;
     setDragOverState({ listId, index, position: isBefore ? 'before' : 'after' });
@@ -192,11 +226,9 @@ function App() {
     try { payload = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (_) { }
     if (!payload) { setDraggedItem(null); setDragOverState(null); return; }
     if (payload.listId === listId) {
-      // compute drop position at drop time (vertical midpoint) for accuracy
       const rect = e.currentTarget.getBoundingClientRect();
       const isBefore = e.clientY < (rect.top + rect.height / 2);
       let toIndex = index + (isBefore ? 0 : 1);
-      // if moving forward, removing earlier shifts indices, adjust
       if (payload.index < toIndex) toIndex -= 1;
       reorderItem(listId, payload.index, toIndex);
     }
@@ -209,8 +241,7 @@ function App() {
     setDragOverState(null);
   };
 
-  // --- inline editing for items ---
-  const [editingItem, setEditingItem] = useState(null); // { listId, index }
+  const [editingItem, setEditingItem] = useState(null);
   const [editingValue, setEditingValue] = useState('');
 
   const startEditing = (listId, index, current) => {
@@ -224,7 +255,6 @@ function App() {
     setLists(prev => prev.map(list => {
       if (list.id !== listId) return list;
       const items = [...list.items];
-      // items are objects {id,text}
       items[index] = { ...items[index], text: editingValue };
       return { ...list, items };
     }));
@@ -234,25 +264,43 @@ function App() {
 
   const cancelEditing = () => { setEditingItem(null); setEditingValue(''); };
 
-  const handleLogin = () => {
-    // open login modal / redirect to login screen
-    setShowLogin(true);
-  };
-
   const openFromHistory = (id) => {
     setShowHome(false);
     setFocusedId(id);
-    // clear highlight after a short delay
     setTimeout(() => setFocusedId(null), 2500);
   };
 
-  // Toast system
+  const handleNavClick = (navKey) => {
+    setActiveNav(navKey);
+    if (navKey === 'commands') {
+      setShowCommandPalette(true);
+    } else if (navKey === 'canvas') {
+      setShowCommandPalette(false);
+    }
+  };
+
+  const handleThemeClick = () => {
+    setShowThemeModal(true);
+  };
+
+  const handleThemeCommit = (color) => {
+    document.documentElement.style.setProperty('--power-color', color);
+    addToast({ message: 'Power color updated', variant: 'success' });
+  };
+
+  const handleSettingsClick = () => {
+    addToast({ message: 'Settings not available', variant: 'info' });
+  };
+
+  const handleLogoutClick = () => {
+    addToast({ message: 'Logged out', variant: 'info' });
+  };
+
   const [toasts, setToasts] = useState([]);
   const addToast = (toast) => {
     const id = Date.now() + Math.random();
     const t = { id, ...toast };
     setToasts(s => [...s, t]);
-    // auto-dismiss after 4s if not a persistent toast
     setTimeout(() => {
       setToasts(s => s.filter(x => x.id !== id));
     }, 4000);
@@ -270,120 +318,89 @@ function App() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => addToast({ message: 'Shareable URL copied to clipboard', variant: 'success' }));
     } else {
-      // fallback: show toast with Copy action
       addToast({ message: 'Copy the URL manually', variant: 'info', actions: [{ label: 'Copy', onClick: () => { try { navigator.clipboard.writeText(url); } catch(e){} } }] });
     }
   };
 
+  const toggleSelect = (listId) => {
+    setSelectedIds(prev => {
+      if (prev.includes(listId)) {
+        return prev.filter(id => id !== listId);
+      } else {
+        return [...prev, listId];
+      }
+    });
+  };
+
+  const batchDelete = () => {
+    if (selectedIds.length === 0) return;
+    setLists(lists.filter(list => !selectedIds.includes(list.id)));
+    setSelectedIds([]);
+    addToast({ message: `${selectedIds.length} list(s) deleted`, variant: 'success' });
+  };
+
+  const batchColor = () => {
+    if (selectedIds.length === 0) return;
+    const newColor = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    setLists(lists.map(list =>
+      selectedIds.includes(list.id) ? { ...list, color: newColor } : list
+    ));
+    addToast({ message: `${selectedIds.length} list(s) color changed`, variant: 'info' });
+  };
+
+  const closeBatch = () => {
+    setSelectedIds([]);
+  };
+
   const requestClearAll = () => {
     addToast({
-      message: 'Clear all lists? This cannot be undone.',
-      variant: 'info',
+      message: 'Clear all lists?',
+      variant: 'warning',
       actions: [
-        { label: 'Clear', onClick: () => { setLists([]); nodeRefs.current = {}; setShowHome(true); setSidebarOpen(false); addToast({ message: 'Lists cleared', variant: 'success' }); } }
+        { label: 'Clear', onClick: () => { setLists([]); nodeRefs.current = {}; setShowHome(true); addToast({ message: 'Lists cleared', variant: 'success' }); } }
       ]
     });
   };
 
-  const buildSavePayload = (listsToSave) => {
-    return {
-      playground: playgroundName,
-      createdAt: new Date().toISOString(),
-      lists: listsToSave.map(l => ({
-        title: l.title,
-        items: (l.items || []).map(i => i.text || ''),
-        color: l.color
-      }))
-    };
-  };
-
-  const onLoginSuccess = (userObj) => {
-    setUser(userObj);
-    try { localStorage.setItem('user', JSON.stringify(userObj)); } catch (e) {}
-    setShowLogin(false);
-    addToast({ message: `Logged in as ${userObj.name}`, variant: 'success' });
-  };
-
-  const saveNow = async () => {
-    if (!user) {
-      addToast({
-        message: 'Please log in to save your lists',
-        variant: 'info',
-        actions: [{ label: 'Login', onClick: () => setShowLogin(true) }]
-      });
-      setShowLogin(true);
-      return;
-    }
-    if (lists.length === 0) {
-      addToast({ message: 'No lists to save', variant: 'info' });
-      return;
-    }
-    const payload = buildSavePayload(lists);
-    try {
-      const res = await fetch('/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      let savedUrl;
-      if (res.ok) {
-        const data = await res.json();
-        savedUrl = data.url || (data.id ? `${window.location.origin}/share/${data.id}` : null);
-      } else {
-        const encoded = btoa(JSON.stringify(payload));
-        savedUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-      }
-      addToast({
-        message: 'Lists saved',
-        variant: 'success',
-        actions: [{ label: 'Copy link', onClick: () => { try { navigator.clipboard.writeText(savedUrl); addToast({ message: 'Link copied', variant: 'success' }); } catch(e){} } }]
-      });
-    } catch (e) {
-      const encoded = btoa(JSON.stringify(payload));
-      const savedUrl = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-      addToast({
-        message: 'Offline save (local shareable URL created)',
-        variant: 'success',
-        actions: [{ label: 'Copy link', onClick: () => { try { navigator.clipboard.writeText(savedUrl); addToast({ message: 'Link copied', variant: 'success' }); } catch(e){} } }]
-      });
-    }
-  };
-
   return (
     <div className="app">
-      <Header onCreate={createList} onLogin={() => setShowLogin(true)} user={user} onLogout={() => { setUser(null); localStorage.removeItem('user'); addToast({ message: 'Logged out', variant: 'info' }); }} />
+      <Header
+        activeNav={activeNav}
+        onNavClick={handleNavClick}
+        onThemeClick={handleThemeClick}
+        onSettingsClick={handleSettingsClick}
+      />
       <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        activeNav={activeNav}
         onClear={requestClearAll}
-        onToggle={() => setSidebarOpen(s => !s)}
         lists={lists}
         onOpenList={openFromHistory}
         onExport={exportUrl}
-        onSave={saveNow}
+        onCreate={createList}
+        onNavClick={handleNavClick}
+        onThemeClick={handleThemeClick}
+        onLogoutClick={handleLogoutClick}
       />
 
       <main ref={playgroundRef} className="playground" role="main">
         <div className="bg-glow" aria-hidden="true"></div>
         <Toasts toasts={toasts} onAction={handleToastAction} onClose={removeToast} />
-        {showLogin && <Login onClose={() => setShowLogin(false)} onLogin={onLoginSuccess} />} 
 
         {lists.length === 0 && (
           <div className="empty-state">
-            <h2>Welcome to Hit-List</h2>
-            <p>Use <strong>Create List</strong> (top-right) to add draggable lists. Drag windows by their header to move them and share via URL.</p>
+            <h1>HITLIST</h1>
+            <p className="empty-state-subtitle">CREATE AND MANAGE YOUR TASKS</p>
 
             <div className="home-playground">
-              <label className="muted">Default playground name</label>
+              <label className="muted uppercase">DEFAULT PLAYGROUND NAME</label>
               <input value={playgroundName} onChange={(e) => { setPlaygroundName(e.target.value); try { localStorage.setItem('playgroundName', e.target.value); } catch(e){} }} placeholder="Default Playground" />
             </div>
 
-            <button className="btn primary" onClick={createList}>Create List</button>
+            <button className="btn primary large" onClick={createList}>CREATE LIST</button>
           </div>
         )}
 
         {lists.map(list => {
-          // ensure there's a stable ref object for each list to pass to Draggable
           if (!nodeRefs.current[list.id]) nodeRefs.current[list.id] = React.createRef();
           const isDragging = draggingIds.includes(list.id);
           return (
@@ -396,8 +413,15 @@ function App() {
               onStart={() => setDraggingIds(s => Array.from(new Set([...s, list.id])))}
               onStop={(e, data) => { setDraggingIds(s => s.filter(i => i !== list.id)); handleDragStop(list.id, e, data); }}
             >
-              <div ref={nodeRefs.current[list.id]} style={{ ['--accent-color']: list.color || PALETTE[0] }} className={`window ${isDragging ? 'dragging' : ''} ${focusedId === list.id ? 'focused' : ''}`}>
+              <div ref={nodeRefs.current[list.id]} style={{ ['--accent-color']: list.color || PALETTE[0] }} className={`window ${isDragging ? 'dragging' : ''} ${focusedId === list.id ? 'focused' : ''} ${selectedIds.includes(list.id) ? 'selected' : ''}`}>
                 <div className="window-header">
+                  <input
+                    type="checkbox"
+                    className="select-checkbox"
+                    checked={selectedIds.includes(list.id)}
+                    onChange={() => toggleSelect(list.id)}
+                    aria-label="Select list"
+                  />
                   <input
                     className="list-input title"
                     value={list.title}
@@ -475,8 +499,30 @@ function App() {
           );
         })}
 
-        {sidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)} aria-hidden={false}></div>}
+        {selectedIds.length > 0 && (
+          <BatchToolbar
+            selectedCount={selectedIds.length}
+            onDelete={batchDelete}
+            onColor={batchColor}
+            onClose={closeBatch}
+          />
+        )}
+
+        <CommandPalette
+          show={showCommandPalette}
+          onClose={() => {
+            setShowCommandPalette(false);
+            setActiveNav('canvas');
+          }}
+          onAction={handleCommandAction}
+        />
       </main>
+
+      <ThemeModal
+        show={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        onCommit={handleThemeCommit}
+      />
     </div>
   );
 }

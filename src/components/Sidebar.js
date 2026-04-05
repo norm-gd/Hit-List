@@ -1,44 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-// Menu actions we want to show (export and clear)
-const MENU_ITEMS = [
-  { key: 'export', label: 'Export' },
-  { key: 'save', label: 'Save' },
-  { key: 'clear', label: 'Clear' }
+const NAV_ITEMS = [
+  { key: 'canvas', label: 'CANVAS', icon: 'dashboard' },
+  { key: 'commands', label: 'COMMANDS', icon: 'terminal' }
 ];
 
+export default function Sidebar({ activeNav, onClear, lists = [], onOpenList, onExport, onCreate, onNavClick, onThemeClick, onLogoutClick }) {
+  const [operatorName, setOperatorName] = useState('OPERATOR_01');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const nameInputRef = useRef(null);
 
-function renderIcon(key) {
-  if (key === 'export') return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M12 3v12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M21 21H3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-  if (key === 'save') return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M4 21h16V7.5L13.5 4H7L4 7.5V21Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M8 21v-8h8v8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('operatorName');
+      if (saved) setOperatorName(saved);
+    } catch (e) {
+      console.error('Failed to read operator name from localStorage');
+    }
+  }, []);
 
-  if (key === 'clear') return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <path d="M3 6h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M8 6v12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M10 11v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M14 11v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-  return null;
-}
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
 
-export default function Sidebar({ open, onClose, onClear, onToggle, lists = [], onOpenList, onExport, onSave }) {
-  const recent = lists ? [...lists].reverse().slice(0, 8) : [];
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    try {
+      localStorage.setItem('operatorName', operatorName);
+    } catch (e) {
+      console.error('Failed to save operator name to localStorage');
+    }
+  };
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleNameBlur();
+    }
+  };
 
   const handleClear = () => {
-    // request parent to ask for confirmation via toast
     onClear && onClear();
   };
 
@@ -46,85 +49,102 @@ export default function Sidebar({ open, onClose, onClear, onToggle, lists = [], 
     onExport && onExport();
   };
 
-  const handleSave = () => {
-    onSave && onSave();
-  };
+  const recent = lists ? [...lists].reverse().slice(0, 8) : [];
 
   return (
-    <aside className={`sidebar ${open ? 'open' : 'collapsed'}`} aria-hidden={false} aria-expanded={open}>
+    <aside className="sidebar" aria-label="Sidebar navigation">
       <div className="sidebar-inner">
-        {open ? (
-          <>
-            <div className="sidebar-header">
-              <div>
-                <h3>Menu</h3>
-                <div className="muted">Quick actions and tools</div>
+        
+        <div className="profile-block">
+          <div className="avatar-placeholder">OP</div>
+          <div className="profile-info">
+            {isEditingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={operatorName}
+                onChange={(e) => setOperatorName(e.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                className="operator-name-input"
+                aria-label="Operator name"
+              />
+            ) : (
+              <div 
+                className="operator-name" 
+                onClick={() => setIsEditingName(true)}
+                role="button"
+                tabIndex={0}
+                aria-label="Edit operator name"
+              >
+                {operatorName}
               </div>
-              <button className="collapse-toggle expanded" aria-label="Collapse menu" onClick={onToggle}>‹</button>
-            </div>
+            )}
+            <div className="operator-status">STATUS: ACTIVE</div>
+          </div>
+        </div>
 
+        <button className="new-task-btn" onClick={onCreate}>
+          <span className="material-symbols-outlined">add</span>
+          NEW TASK
+        </button>
 
-            <nav className="sidebar-nav">
-              <div className="action-row">
-                <button className="action-btn" title="Export" onClick={handleExport} aria-label="Export">
-                  <span className="action-icon">{renderIcon('export')}</span>
-                  <span className="label">Export</span>
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.key}
+              className={`nav-link ${activeNav === item.key ? 'active' : ''}`}
+              onClick={() => {
+                if (onNavClick) onNavClick(item.key);
+              }}
+              aria-label={item.label}
+            >
+              <span className="material-symbols-outlined">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="action-row">
+          <button className="action-btn" title="Export" onClick={handleExport} aria-label="Export">
+            <span className="material-symbols-outlined">download</span>
+            <span className="label">Export</span>
+          </button>
+          <button className="action-btn" title="Clear All" onClick={handleClear} aria-label="Clear All">
+            <span className="material-symbols-outlined">delete</span>
+            <span className="label">Clear</span>
+          </button>
+        </div>
+
+        <div className="spacer" />
+
+        <div className="sidebar-history">
+          <h4>RECENT LISTS</h4>
+          {recent.length === 0 ? (
+            <div className="muted">No recent lists</div>
+          ) : (
+            <div className="history-list">
+              {recent.map(item => (
+                <button key={item.id} className="history-item" onClick={() => onOpenList && onOpenList(item.id)}>
+                  <span className="history-title">{item.title}</span>
+                  <small className="muted">{new Date(item.id).toLocaleString()}</small>
                 </button>
-
-                <button className="action-btn" title="Save" onClick={handleSave} aria-label="Save">
-                  <span className="action-icon">{renderIcon('save')}</span>
-                  <span className="label">Save</span>
-                </button>
-
-                <button className="action-btn" title="Clear All" onClick={handleClear} aria-label="Clear All">
-                  <span className="action-icon">{renderIcon('clear')}</span>
-                  <span className="label">Clear</span>
-                </button>
-              </div>
-
-              <div className="spacer" />
-            </nav>
-
-            <div className="sidebar-history">
-              <h4>Recent lists</h4>
-              {recent.length === 0 ? (
-                <div className="muted">No recent lists</div>
-              ) : (
-                <div className="history-list">
-                  {recent.map(item => (
-                    <button key={item.id} className="history-item" onClick={() => onOpenList && onOpenList(item.id)}>
-                      <span className="history-title">{item.title}</span>
-                      <small className="muted">{new Date(item.id).toLocaleString()}</small>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="see-all">See all</div>
+              ))}
             </div>
+          )}
+        </div>
 
-            <div className="sidebar-footer">
-              <small className="muted">Frosted panel • Hit-List</small>
-            </div>
-          </>
-        ) : (
-          <nav className="sidebar-collapsed-nav" aria-hidden={!open}>
-            <div className="collapsed-top">
-              <button className="collapse-toggle top" aria-label="Open menu" onClick={onToggle}>›</button>
-            </div>
-
-            {MENU_ITEMS.map((it) => (
-              <button key={it.key} className="icon-btn big" title={it.label} aria-label={it.label} onClick={it.key === 'export' ? handleExport : it.key === 'clear' ? handleClear : handleSave}>
-                <span className="icon">{renderIcon(it.key)}</span>
-              </button>
-            ))}
-
-            <div style={{ flex: 1 }} />
-
-          </nav>
-        )}
+        <div className="sidebar-footer">
+          <button className="footer-link" onClick={onThemeClick} aria-label="Theme">
+            <span className="material-symbols-outlined">palette</span>
+            THEME
+          </button>
+          <button className="footer-link" onClick={onLogoutClick} aria-label="Logout">
+            <span className="material-symbols-outlined">logout</span>
+            LOGOUT
+          </button>
+        </div>
       </div>
-
-
     </aside>
   );
 }

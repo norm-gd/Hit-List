@@ -13,7 +13,9 @@ export default function Toasts({ toasts = [], onAction, onClose }) {
               ))}
             </div>
           )}
-          <button className="toast-close" onClick={() => onClose(t.id)} aria-label="Dismiss">×</button>
+          <button className="toast-close" onClick={() => onClose(t.id)} aria-label="Dismiss">
+            <span className="material-symbols-outlined">close</span>
+          </button>
         </div>
       ))}
     </div>
