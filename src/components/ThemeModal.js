@@ -8,8 +8,8 @@ const POWER_COLORS = [
   { name: 'LIME', value: '#daf900' }
 ];
 
-export default function ThemeModal({ show, onClose, onCommit }) {
-  const [selectedColor, setSelectedColor] = useState('#f6ffc0');
+export default function ThemeModal({ show, onClose, onCommit, initialColor = '#f6ffc0' }) {
+  const [selectedColor, setSelectedColor] = useState(initialColor);
 
   if (!show) return null;
 
@@ -19,7 +19,7 @@ export default function ThemeModal({ show, onClose, onCommit }) {
   };
 
   const handleReset = () => {
-    setSelectedColor('#f6ffc0');
+    setSelectedColor(initialColor);
   };
 
   return (
@@ -60,7 +60,7 @@ export default function ThemeModal({ show, onClose, onCommit }) {
                   <span className="material-symbols-outlined">bolt</span>
                 </div>
                 <div className="preview-text">
-                  <span className="preview-title">System Pulse Active</span>
+                  <span className="preview-title">System Active</span>
                   <span className="preview-subtitle">Current Color: {POWER_COLORS.find(c => c.value === selectedColor)?.name.replace('_', ' ')}</span>
                 </div>
               </div>
@@ -82,7 +82,7 @@ export default function ThemeModal({ show, onClose, onCommit }) {
         </div>
 
         <div className="theme-footer">
-          <span>OS_VERSION: 2.0.4-STABLE</span>
+          <span>OS_VERSION: 0.0.1-STABLE</span>
           <span>LATENCY: 0.002MS</span>
           <span>ENCRYPTION: AES-256</span>
         </div>
