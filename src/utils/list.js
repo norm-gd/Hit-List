@@ -11,7 +11,7 @@ export function createNewList(playgroundName) {
   };
 }
 
-export function normalizeItems(lists) {
+export function normalizeItems(lists) { // <listcontent> -> typecast <string> 
   return lists.map(list => ({
     ...list,
     items: (list.items || []).map(it =>
