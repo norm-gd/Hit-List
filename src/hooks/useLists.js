@@ -3,15 +3,15 @@ import { PALETTE } from '../constants';
 import { createNewList } from '../utils/list';
 
 export function useLists(initialLists, setShowHome, addToast) {
-  const [lists, setLists] = useState(initialLists);
-  const [draggingIds, setDraggingIds] = useState([]);
+  const [lists, setLists] = useState(initialLists); // blank lists 
+  const [draggingIds, setDraggingIds] = useState([]); // save list position 
   const [focusedId, setFocusedId] = useState(null);
   const [paletteOpenId, setPaletteOpenId] = useState(null);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [editingItem, setEditingItem] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]); // selected lists 
+  const [editingItem, setEditingItem] = useState(null); 
   const [editingValue, setEditingValue] = useState('');
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [dragOverState, setDragOverState] = useState(null);
+  const [draggedItem, setDraggedItem] = useState(null); // enable dragging accross canvas 
+  const [dragOverState, setDragOverState] = useState(null); 
   const nodeRefs = useRef({});
 
   const createList = (playgroundName) => {
