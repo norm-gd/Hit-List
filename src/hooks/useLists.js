@@ -13,6 +13,10 @@ export function useLists(initialLists, setShowHome, addToast) {
   const [draggedItem, setDraggedItem] = useState(null); // enable dragging accross canvas 
   const [dragOverState, setDragOverState] = useState(null); 
   const nodeRefs = useRef({});
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+  const editingValueRef = useRef(editingValue);
+  editingValueRef.current = editingValue;
 
   const createList = (playgroundName) => {
     const newList = createNewList(playgroundName);
@@ -21,21 +25,21 @@ export function useLists(initialLists, setShowHome, addToast) {
   };
 
   const setListColor = (id, color) => {
-    setLists(lists.map(list => list.id === id ? { ...list, color } : list));
+    setLists(prev => prev.map(list => list.id === id ? { ...list, color } : list));
     setPaletteOpenId(null);
   };
 
   const updateListTitle = (id, newTitle) => {
-    setLists(lists.map(list => list.id === id ? { ...list, title: newTitle } : list));
+    setLists(prev => prev.map(list => list.id === id ? { ...list, title: newTitle } : list));
   };
 
   const addItem = (id, itemText) => {
     const itemObj = { id: Date.now() + Math.random(), text: itemText };
-    setLists(lists.map(list => list.id === id ? { ...list, items: [...list.items, itemObj] } : list));
+    setLists(prev => prev.map(list => list.id === id ? { ...list, items: [...list.items, itemObj] } : list));
   };
 
   const removeItem = (id, index) => {
-    setLists(lists.map(list => {
+    setLists(prev => prev.map(list => {
       if (list.id === id) {
         const newItems = [...list.items];
         newItems.splice(index, 1);
@@ -59,7 +63,7 @@ export function useLists(initialLists, setShowHome, addToast) {
   };
 
   const handleDragStop = (id, e, data) => {
-    setLists(lists.map(list => list.id === id ? { ...list, position: { x: data.x, y: data.y } } : list));
+    setLists(prev => prev.map(list => list.id === id ? { ...list, position: { x: data.x, y: data.y } } : list));
   };
 
   const reorderItem = (listId, fromIndex, toIndex) => {
@@ -128,10 +132,11 @@ export function useLists(initialLists, setShowHome, addToast) {
   const saveEditing = () => {
     if (!editingItem) return;
     const { listId, index } = editingItem;
+    const value = editingValueRef.current;
     setLists(prev => prev.map(list => {
       if (list.id !== listId) return list;
       const items = [...list.items];
-      items[index] = { ...items[index], text: editingValue };
+      items[index] = { ...items[index], text: value };
       return { ...list, items };
     }));
     setEditingItem(null);
@@ -150,19 +155,21 @@ export function useLists(initialLists, setShowHome, addToast) {
   };
 
   const batchDelete = () => {
-    if (selectedIds.length === 0) return;
-    setLists(lists.filter(list => !selectedIds.includes(list.id)));
+    const idsToDelete = selectedIdsRef.current;
+    if (idsToDelete.length === 0) return;
+    setLists(prev => prev.filter(list => !idsToDelete.includes(list.id)));
     setSelectedIds([]);
-    addToast({ message: `${selectedIds.length} list(s) deleted`, variant: 'success' });
+    addToast({ message: `${idsToDelete.length} list(s) deleted`, variant: 'success' });
   };
 
   const batchColor = () => {
-    if (selectedIds.length === 0) return;
+    const idsToColor = selectedIdsRef.current;
+    if (idsToColor.length === 0) return;
     const newColor = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-    setLists(lists.map(list =>
-      selectedIds.includes(list.id) ? { ...list, color: newColor } : list
+    setLists(prev => prev.map(list =>
+      idsToColor.includes(list.id) ? { ...list, color: newColor } : list
     ));
-    addToast({ message: `${selectedIds.length} list(s) color changed`, variant: 'info' });
+    addToast({ message: `${idsToColor.length} list(s) color changed`, variant: 'info' });
   };
 
   const closeBatch = () => {
