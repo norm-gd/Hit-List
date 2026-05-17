@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-
-const POWER_COLORS = [
-  { name: 'YELLOW', value: '#f6ffc0' },
-  { name: 'PINK', value: '#ff51fa' },
-  { name: 'CYAN', value: '#c1fffe' },
-  { name: 'ORANGE', value: '#ff7351' },
-  { name: 'LIME', value: '#daf900' }
-];
+import { POWER_COLORS } from '../constants';
 
 export default function ThemeModal({ show, onClose, onCommit, initialColor = '#f6ffc0' }) {
   const [selectedColor, setSelectedColor] = useState(initialColor);

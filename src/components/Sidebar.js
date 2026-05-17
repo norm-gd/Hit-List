@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-const NAV_ITEMS = [
-  { key: 'canvas', label: 'CANVAS', icon: 'dashboard' },
-  { key: 'commands', label: 'COMMANDS', icon: 'terminal' }
-];
+import { NAV_ITEMS } from '../constants';
 
 export default function Sidebar({ activeNav, onClear, lists = [], onOpenList, onCopy, onBookmark, onCreate, onNavClick, onThemeClick, onLogoutClick, operatorName, onOperatorNameChange }) {
   const [isEditingName, setIsEditingName] = useState(false);

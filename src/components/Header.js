@@ -1,9 +1,5 @@
 import React from 'react';
-
-const NAV_ITEMS = [
-  { key: 'canvas', label: 'CANVAS', icon: 'dashboard' },
-  { key: 'commands', label: 'COMMANDS', icon: 'terminal' }
-];
+import { NAV_ITEMS } from '../constants';
 
 export default function Header({ activeNav, onNavClick, onThemeClick, onSettingsClick }) {
   return (
