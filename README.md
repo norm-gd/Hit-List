@@ -1,9 +1,9 @@
 # HitLIST
 
-**DEPLOYED AT : [https://hit-list-nine.vercel.app/](https://hit-list-nine.vercel.app/)**
+**DEPLOYED AT : [https://hit-list-nine.vercel.app/](https://hit-list-nine.vercel.app/)**  
 [![License: MIT](https://img.shields.io/badge/License-MIT-white.svg)](https://opensource.org/licenses/MIT)
 
-A brutalist, drag-and-drop task manager with zero backend. Your state lives in the URL.
+A minimalist, drag-and-drop task manager with zero backend. Your data lives in the URL.
 
 <!-- TODO: Add screenshot or GIF here -->
 <!-- ![HitLIST Screenshot](./docs/screenshot.png) -->
